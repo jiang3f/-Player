@@ -3,34 +3,38 @@ var Rubiks = Rubiks || {};
 
 Rubiks.Player = function(element) {
 
+  cast.receiver.logger.setLevelValue(cast.receiver.LoggerLevel.DEBUG);
+    
   this.element_ = element;
+
+  // video element
+  this.mediaElement_ = this.element_.querySelector('video');
+
+  this.mediaManager_ = new window.cast.receiver.MediaManager(this.mediaElement_);
+  
+  // cast receier manager
+  this.receiverManager_ = window.cast.receiver.CastReceiverManager.getInstance();
+  
+  // config
+  this.appConfig_ = new cast.receiver.CastReceiverManager.Config();
   
 }
 
 /**
+ * set app config.
+ */
+Rubiks.Player.prototype.set_appConfig = function() {
+    this.appConfig_.statusText = 'Ready to play';
+    this.appConfig_.maxInactivity = 6000;
+    
+}
+    
+/**
  * Starts the player.
- *
- * @export
  */
 Rubiks.Player.prototype.start = function() {
 
-    mediaElement = this.element_.querySelector('video');
+    this.set_appConfig();
 
-    mediaManager_ = new window.cast.receiver.MediaManager(mediaElement_);
-
-    const castReceiverManager = window.cast.receiver.CastReceiverManager.getInstance();
-
-    castReceiverManager.onReady = (event) => {
-      const deviceCapabilities = window.cast.receiver.CastReceiverManager.getInstance().getDeviceCapabilities();
-      if (deviceCapabilities && deviceCapabilities['is_hdr_supported']) {
-        console.log(deviceCapabilities['is_hdr_supported']);
-        // hdr supported
-      }
-      if (deviceCapabilities && deviceCapabilities['is_dv_supported']) {
-        console.log(deviceCapabilities['is_dv_supported']);
-        // dv supported
-      }
-    };    
-    
-    castReceiverManager.start();
+    this.receiverManager_.start(this.appConfig);
 };
