@@ -2,14 +2,17 @@
     <head>
       <title>Rubik's Player</title>
       <script src="//www.gstatic.com/cast/sdk/libs/receiver/2.0.0/cast_receiver.js"></script>
+      <script type="text/javascript" src="player.js"></script>      
     </head>
     <body>
-      <video id='media'/>
+      <div id="player" class="player">
+        <div class="media">
+            <video></video>
+        </div>
+      </div>
       <script>
-        window.mediaElement = document.getElementById('media');
-        window.mediaManager = new cast.receiver.MediaManager(window.mediaElement);
-        window.castReceiverManager = cast.receiver.CastReceiverManager.getInstance();
-        window.castReceiverManager.start();
+        var playerDiv = document.getElementById('player');
+        new Rubiks.Player(playerDiv).start();
       </script>
     </body>
     </html>
