@@ -1,5 +1,5 @@
 /* name space */
-var Rubiks = Rubiks || {};
+var Dash = Dash || {};
 
 Dash.Player = function(element) {
 
