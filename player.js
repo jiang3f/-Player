@@ -1,10 +1,11 @@
 /* name space */
 var Rubiks = Rubiks || {};
 
-Rubiks.Player = function(element) {
+Dash.Player = function(element) {
 
     cast.receiver.logger.setLevelValue(cast.receiver.LoggerLevel.DEBUG);
-
+    cast.player.api.setLoggerLevel(cast.player.api.LoggerLevel.DEBUG);
+  
     /*
     *    class members
     */
@@ -23,38 +24,12 @@ Rubiks.Player = function(element) {
     // config
     this.appConfig = new cast.receiver.CastReceiverManager.Config();
 
+    // player
+    this.player = null;
    
     /*====================================================================================
     *    For media applications, override/provide any event listeners on the MediaManager. 
     *===================================================================================*/
-
-    /**
-     * Called when we receive a LOAD message. Calls load().
-     * @param {cast.receiver.MediaManager.Event} event The load event.
-     * @private
-     */
-    /*
-    this.mediaManager.onLoad = (function() {
-        this.mediaManager.origOnLoad = this.mediaManager.onLoad;
-        return function(event) {
-            console.log("onload");
-            this.mediaManager.origOnLoad(event);
-        }
-    }());
-
-    this.mediaManager['origOnLoad'] = this.mediaManager.onLoad;
-    this.mediaManager.onLoad = function (event) {
-        console.log("onLoad");
-        this.mediaManager['origOnLoad'](event);
-    }
-
-    this.mediaManager['origOnPlay'] = this.mediaManager.onPlay;
-    this.mediaManager.onPlay = function (event) {
-        //do whatever is needed for the receiver application logic
-        console.log("onPlay");
-        this.mediaManager['origOnPlay'](event);
-    }
-    */
 
     /**
      * The original metadata error callback.
@@ -72,7 +47,7 @@ Rubiks.Player = function(element) {
 /**
  * set app config.
  */
-Rubiks.Player.prototype.set_appConfig = function() {
+Dash.Player.prototype.set_appConfig = function() {
     this.appConfig.statusText = 'Ready to play';
 
     // 100 minutes for testing, use default 10sec in prod by not setting this value
@@ -82,25 +57,59 @@ Rubiks.Player.prototype.set_appConfig = function() {
 }
 
 /**
- * Called when the media could not be successfully loaded. Transitions to
- * IDLE state and calls the original media manager implementation.
- *
- * @see cast.receiver.MediaManager#onLoadMetadataError
- * @param {!cast.receiver.MediaManager.LoadInfo} event The data
- *     associated with a LOAD event.
- * @private
+ * Called when we receive a LOAD message. Calls load().
  */
-Rubiks.Player.prototype.onLoad = function(event) {
+Dash.Player.prototype.onLoad = function(event) {
     console.log('onLoad');
-    this.onLoadOrig(event);
+
+    if (this.player !== null) {
+        this.player.unload();    // Must unload before starting again.
+        this.player = null;
+    }
+
+    if (event.data['media'] && event.data['media']['contentId']) {
+        console.log('Starting media application');
+        var url = event.data['media']['contentId'];
+
+        window.host = new cast.player.api.Host({'mediaElement':this.mediaElement, 'url':url});
+        var ext = url.substring(url.lastIndexOf('.'), url.length);
+        var initStart = event.data['media']['currentTime'] || 0;
+        var autoplay = event.data['autoplay'] || true;
+        var protocol = null;
+        this.mediaElement.autoplay = autoplay;  // Make sure autoplay get's set
+        if (url.lastIndexOf('.m3u8') >= 0) {
+            protocol = cast.player.api.CreateHlsStreamingProtocol(host);
+        } else if (url.lastIndexOf('.mpd') >= 0) {
+            protocol = cast.player.api.CreateDashStreamingProtocol(host);
+        } else if (url.indexOf('.ismc') >= 0) {
+            protocol = cast.player.api.CreateSmoothStreamingProtocol(host);
+        }
+
+        host.onError = function(errorCode) {
+            console.log("Fatal Error - " + errorCode);
+            if (this.player) {
+                this.player.unload();
+                this.player = null;
+            }
+        };
+
+        console.log("we have protocol " + ext);
+        if (protocol !== null) {
+            console.log("Starting Media Player Library");
+            this.player = new cast.player.api.Player(host);
+            this.player.load(protocol, initStart);
+        }
+        else {
+            this.onLoadOrig(event);
+        }
+    }
 };
-  
   
 
 /**
  * Starts the player.
  */
-Rubiks.Player.prototype.start = function() {
+Dash.Player.prototype.start = function() {
 
     this.set_appConfig();
 
