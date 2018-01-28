@@ -31,10 +31,13 @@ Dash.Player = function(element)
     // protocol
     this.protocol = null;
 
-  /**
-   * Text Tracks currently supported.
-   */
-  this.textTrackType = null;
+    // host
+    this.host = null;
+
+    /**
+     * Text Tracks currently supported.
+     */
+    this.textTrackType = null;
   
    
     /*====================================================================================
@@ -54,6 +57,17 @@ Dash.Player = function(element)
    */
    this.onMetadataLoadedOrig = this.mediaManager.onMetadataLoaded.bind(this.mediaManager);
    this.mediaManager.onMetadataLoaded = this.onMetadataLoaded.bind(this);
+
+
+  /**
+   * Override onEditTrackInfo
+   * @private {?function(!cast.receiver.MediaManager.onEditTrackInfo)}
+   */
+   
+  this.onEditTracksInfoOrig = this.mediaManager.onEditTracksInfo.bind(this.mediaManager);
+  this.mediaManager.onEditTracksInfo = this.onEditTracksInfo.bind(this);
+
+
 }
 
 
@@ -109,14 +123,14 @@ Dash.Player.prototype.onLoad = function(event)
         this.mediaElement.autoplay = autoplay;  // Make sure autoplay get's set
 
         if (url.lastIndexOf('.m3u8') >= 0) {
-            this.protocol = cast.player.api.CreateHlsStreamingProtocol(host);
+            this.protocol = cast.player.api.CreateHlsStreamingProtocol(window.host);
         } else if (url.lastIndexOf('.mpd') >= 0) {
-            this.protocol = cast.player.api.CreateDashStreamingProtocol(host);
+            this.protocol = cast.player.api.CreateDashStreamingProtocol(window.host);
         } else if (url.indexOf('.ismc') >= 0) {
-            this.protocol = cast.player.api.CreateSmoothStreamingProtocol(host);
+            this.protocol = cast.player.api.CreateSmoothStreamingProtocol(window.host);
         }
 
-        host.onError = function(errorCode) {
+        window.host.onError = function(errorCode) {
             console.log("Fatal Error - " + errorCode);
             if (this.player) {
                 this.player.unload();
@@ -124,12 +138,18 @@ Dash.Player.prototype.onLoad = function(event)
             }
         };
 
+        /**
+         * Notifies the host that a cue is about to be added.
+         */
+        //this.onCueOrig = cast.player.api.Host.onCue.bind(cast.player.api.Host);
+        //cast.player.api.Host.onCue = this.onCue.bind(this);
+
         console.log("we have protocol " + ext);
         if (this.protocol !== null) {
             console.log("Starting Media Player Library");
-            this.player = new cast.player.api.Player(host);
+            this.player = new cast.player.api.Player(window.host);
             this.player.load(this.protocol, initStart);
-
+            
         }
         else {
             this.onLoadOrig(event);
@@ -155,7 +175,8 @@ Dash.Player.prototype.onMetadataLoaded = function(info)
       this.protocol.enableStream(i, true);
   }
 
-  this.player.enableCaptions(true);            
+  this.player.enableCaptions(true);
+  
   
   /*
    * for debugging
@@ -218,7 +239,54 @@ Dash.Player.prototype.onLoadSuccess = function() {
     console.log("onLoadSuccess")
 };
     
+
 /**
+ * 
+ */
+Dash.Player.prototype.onEditTracksInfo = function (event) 
+{
+    if (!event.data || !event.data.activeTrackIds) 
+    {
+        return;
+    }
+
+    // if sideloaded tracks are available, show/hide those
+    if (sideloadedTracksAvailable) 
+    {
+        this.UpdateSideloadedTracksVisibility(event);
+    } 
+    else 
+    {
+        this.UpdateEmbeddedTracksVisibility(event);
+    }
+
+    this.onEditTracksInfoOrig(event);
+};
+
+Dash.Player.prototype.UpdateSideloadedTracksVisibility = function (data) 
+{
+    var mediaInformation = this.mediaManager.getMediaInformation() || {};
+
+    // disable currently enabled sideloaded TTML or VTT, if any
+    this.mediaPlayer.enableCaptions(false, this.player.api.CaptionsType.TTML);
+    this.mediaPlayer.enableCaptions(false, this.player.api.CaptionsType.WEBVTT);
+
+    this.EnableActiveTracks(data.activeTrackIds, mediaInformation.tracks || []);
+};
+
+Dash.Player.EnableActiveTracks = function (activeTrackIds, tracks) 
+{
+   // loops over tracks and if requested to be enabled calls
+   // mediaPlayer.enableCaptions(true, trackType, tracks[i].trackContentId);
+
+};
+
+Dash.Player.prototype.onCue = function (CaptionsType)
+{
+    console.log("onCue");
+};
+
+ /**
  * Starts the player.
  */
 Dash.Player.prototype.start = function() {
@@ -228,3 +296,4 @@ Dash.Player.prototype.start = function() {
     this.receiverManager.start(this.appConfig);
 
 };
+
